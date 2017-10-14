@@ -2,10 +2,8 @@ module Database.Datastore
   ( DATASTORE
   , AuthCreds
   , Client
-  , Key
   , makeClient
-  , makeKindKey
-  , makeKey
+  , delete
   , save
   , get
   ) where
@@ -24,8 +22,12 @@ data Client =
   Client
 
 
-data Key =
-  Key
+type Result =
+  { name :: String
+  , kind :: String
+  , data :: Foreign
+  , path :: Array String
+  }
 
 
 type AuthCreds =
@@ -39,50 +41,51 @@ foreign import data DATASTORE :: Effect
 foreign import makeClient :: AuthCreds -> Client
 
 
-foreign import makeKindKey
-  :: Client
-  -> String
-  -> Key
-
-
-foreign import makeKey
-  :: Client
-  -> String
-  -> String
-  -> Key
-
-
 foreign import _get
   :: forall eff
   . Client
-  -> Key
-  -> Aff.EffFnAff (datastore :: DATASTORE | eff) Foreign
+  -> Array String
+  -> Aff.EffFnAff (datastore :: DATASTORE | eff) Result
 
 
 foreign import _save
   :: forall eff
   . Client
-  -> Key
+  -> Array String
   -> Foreign
   -> Aff.EffFnAff (datastore :: DATASTORE | eff) Unit
 
+
+foreign import _delete
+  :: forall eff
+  . Client
+  -> Array String
+  -> Aff.EffFnAff (datastore :: DATASTORE | eff) Unit
 
 
 get
   :: forall eff
   . Client
-  -> Key
-  -> Aff (datastore :: DATASTORE | eff) (Maybe Foreign)
+  -> Array String
+  -> Aff (datastore :: DATASTORE | eff) (Maybe Result)
 get client key =
   _get client key
     |> Aff.fromEffFnAff
-    |> map handleUndefined
+    |> map handleNotFound
+
+
+handleNotFound :: Result -> Maybe Result
+handleNotFound r =
+  if r."data" |> isUndefined then
+    Nothing
+  else
+    Just r
 
 
 save
   :: forall eff
   . Client
-  -> Key
+  -> Array String
   -> Foreign
   -> Aff (datastore :: DATASTORE | eff) Unit
 save client key value =
@@ -91,44 +94,12 @@ save client key value =
     |> Aff.fromEffFnAff
 
 
-handleUndefined :: Foreign -> Maybe Foreign
-handleUndefined e =
-  if isUndefined e then
-    Nothing
-  else
-    Just e
-
-{-
-var key = datastoreClient.key(['Product', 'Computer']);
-
-datastoreClient.get(key, function(err, entity) {
-  console.log(err || entity);
-});
-
-// Save data to Datastore.
-var blogPostData = {
-  title: 'How to make the perfect homemade pasta',
-  author: 'Andrew Chilton',
-  isDraft: true
-};
-
-var blogPostKey = datastoreClient.key('BlogPost');
-
-datastoreClient.save({
-  key: blogPostKey,
-  data: blogPostData
-}, function(err) {
-  // `blogPostKey` has been updated with an ID so you can do more operations
-  // with it, such as an update.
-  blogPostData.isDraft = false;
-
-  datastoreClient.save({
-    key: blogPostKey,
-    data: blogPostData
-  }, function(err) {
-    if (!err) {
-      // The blog post is now published!
-    }
-  });
-});
--}
+delete
+  :: forall eff
+  . Client
+  -> Array String
+  -> Aff (datastore :: DATASTORE | eff) Unit
+delete client key =
+  key
+    |> _delete client
+    |> Aff.fromEffFnAff

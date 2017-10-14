@@ -57,14 +57,14 @@ opts =
 suites :: forall e. TestSuite (datastore :: DATASTORE | e)
 suites = do
   test "get non-existing Entity" do
-    let key = makeKey client "Person" "Amy"
+    let key = ["Person", "Amy"]
     result <- get client key
     result
       |> Maybe.isNothing
       |> Assert.assert "non-existant Entity get should eq Nothing"
 
   test "save and get an Entity" do
-    let key = makeKey client "Person" "Simmy"
+    let key = ["Person", "Simmy"]
     let thing = Thing { score: 15 }
     thing
       |> Foreign.toForeign
@@ -75,8 +75,40 @@ suites = do
       Nothing ->
         failure "get returned Nothing"
 
-      Just value ->
+      Just value -> do
         value
+          |> _.kind
+          |> Assert.equal "Person"
+
+        value
+          |> _.name
+          |> Assert.equal "Simmy"
+
+        value
+          |> _.path
+          |> Assert.equal ["Person", "Simmy"]
+
+        value
+          |> _.data
           |> FGeneric.genericDecode opts
           |> Except.runExcept
           |> Assert.equal (Right thing)
+
+  test "deletion" do
+    let key = ["Person", "Tina"]
+    let thing = Thing { score: 2 }
+    thing
+      |> Foreign.toForeign
+      |> save client key
+
+    result1 <- get client key
+    result1
+      |> Maybe.isJust
+      |> Assert.assert "Thing should be persisted"
+
+    delete client key
+
+    result2 <- get client key
+    result2
+      |> Maybe.isNothing
+      |> Assert.assert "Thing should not be persisted"

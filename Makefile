@@ -1,7 +1,7 @@
 export PATH := ./node_modules/.bin:$(PATH)
 
 # Database configuration
-export DATASTORE_DATASET = swoosh-backend
+export DATASTORE_DATASET = purescript-datastore-proj
 export DATASTORE_EMULATOR_HOST = localhost:8081
 export DATASTORE_EMULATOR_HOST_PATH = localhost:8081/datastore
 export DATASTORE_HOST = http://localhost:8081
@@ -20,7 +20,6 @@ install:
 
 
 test: ## Run the test watcher
-	echo $$DATASTORE_DATASET
 	pulp test
 .PHONY: test
 
