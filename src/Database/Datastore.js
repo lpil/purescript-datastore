@@ -1,7 +1,7 @@
 const datastore = require("@google-cloud/datastore");
 
-function makeKey(client, strings) {
-  const cloned = strings.slice(0);
+function makeKey(client, parts) {
+  const cloned = parts.slice(0);
   return client.key(cloned);
 }
 
@@ -21,8 +21,8 @@ exports._get = function(client) {
           onSuccess({
             data: res,
             kind: key.kind,
-            name: key.name,
-            path: key.path
+            path: key.path,
+            id: key.name || key.id
           });
         }
       });
