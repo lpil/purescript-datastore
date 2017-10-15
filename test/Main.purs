@@ -18,7 +18,7 @@ import Data.Generic.Rep.Show (genericShow)
 import Data.Foreign.Generic as FGeneric
 import Data.Foreign.Generic.Types (Options)
 
-import Test.Unit (TestSuite, test, failure)
+import Test.Unit (TestSuite, suite, test, failure)
 import Test.Unit.Assert as Assert
 import Test.Unit.Console (TESTOUTPUT)
 import Test.Unit.Main (runTest)
@@ -60,98 +60,108 @@ opts =
 
 suites :: forall e. TestSuite (datastore :: DATASTORE | e)
 suites = do
-  test "get non-existing Entity" do
-    let key = [Tuple (Kind "Person") (Name "Jane")]
-    result <- get client key
-    result
-      |> Maybe.isNothing
-      |> Assert.assert "non-existant Entity get should eq Nothing"
+  suite "Databse.Datastore" do
+    suite "get" do
+      test "get non-existing Entity" do
+        let key = [Tuple (Kind "Person") (Name "Jane")]
+        delete client key
+        result <- get client key
+        result
+          |> Maybe.isNothing
+          |> Assert.assert "non-existant Entity get should eq Nothing"
 
-  test "save and get a named Entity" do
-    let kind = Kind "Person"
-    let name = Name "Simmy"
-    let thing = Thing { score: 15 }
-    thing
-      |> Foreign.toForeign
-      |> save' client [] kind name
+    suite "upsert" do
+      test "upsert and get a new named Entity" do
+        let kind = Kind "Person"
+        let name = Name "Simmy"
+        let key = [Tuple kind name]
+        let thing = Thing { score: 15 }
+        delete client key
+        thing
+          |> Foreign.toForeign
+          |> upsert client [] kind name
 
-    result <- get client [Tuple kind name]
-    case result of
-      Nothing ->
-        failure "get returned Nothing"
+        result <- get client key
+        case result of
+          Nothing ->
+            failure "get returned Nothing"
 
-      Just value -> do
-        value
-          |> _.kind
-          |> Assert.equal "Person"
+          Just value -> do
+            value
+              |> _.kind
+              |> Assert.equal "Person"
 
-        {-- value --}
-        {--   |> _.id --}
-        {--   |> Assert.equal (Name "Simmy") --}
+            value
+              |> _.id
+              |> Assert.equal (Name "Simmy")
 
-        {-- TODO --}
-        {-- value --}
-        {--   |> _.path --}
-        {--   |> Assert.equal ["Person", "Simmy"] --}
+            {-- TODO --}
+            {-- value --}
+            {--   |> _.path --}
+            {--   |> Assert.equal ["Person", "Simmy"] --}
 
-        value
-          |> _.data
-          |> FGeneric.genericDecode opts
-          |> Except.runExcept
-          |> Assert.equal (Right thing)
+            value
+              |> _.data
+              |> FGeneric.genericDecode opts
+              |> Except.runExcept
+              |> Assert.equal (Right thing)
 
-  test "save and get a numbered Entity" do
-    let kind = Kind "Person"
-    let id = Id 50
-    let thing = Thing { score: 15 }
-    thing
-      |> Foreign.toForeign
-      |> save' client [] kind id
+      test "upsert and get a new numbered Entity" do
+        let kind = Kind "Person"
+        let id = Id 50
+        let key = [Tuple kind id]
+        let thing = Thing { score: 15 }
+        delete client key
+        thing
+          |> Foreign.toForeign
+          |> upsert client [] kind id
 
-    result <- get client [Tuple kind id]
-    case result of
-      Nothing ->
-        failure "get returned Nothing"
+        result <- get client key
+        case result of
+          Nothing ->
+            failure "get returned Nothing"
 
-      Just value -> do
-        value
-          |> _.kind
-          |> Assert.equal "Person"
+          Just value -> do
+            value
+              |> _.kind
+              |> Assert.equal "Person"
 
-        {-- TODO --}
-        {-- value --}
-        {--   |> _.id --}
-        {--   |> Assert.equal (Id 50) --}
+            value
+              |> _.id
+              |> Assert.equal (Id 50)
 
-        {-- TODO --}
-        {-- value --}
-        {--   |> _.path --}
-        {--   |> Assert.equal ["Person", "Simmy"] --}
+            {-- TODO --}
+            {-- value --}
+            {--   |> _.path --}
+            {--   |> Assert.equal ["Person", "Simmy"] --}
 
-        value
-          |> _.data
-          |> FGeneric.genericDecode opts
-          |> Except.runExcept
-          |> Assert.equal (Right thing)
+            value
+              |> _.data
+              |> FGeneric.genericDecode opts
+              |> Except.runExcept
+              |> Assert.equal (Right thing)
 
+      {-- TODO --}
+      {-- test "updating" --}
 
-  test "deletion" do
-    let kind = Kind "Person"
-    let name = Name "Tina"
-    let key = [Tuple kind name]
-    let thing = Thing { score: 2 }
-    thing
-      |> Foreign.toForeign
-      |> save' client [] kind name
+    suite "delete" do
+      test "deletion" do
+        let kind = Kind "Person"
+        let name = Name "Tina"
+        let key = [Tuple kind name]
+        let thing = Thing { score: 2 }
+        thing
+          |> Foreign.toForeign
+          |> upsert client [] kind name
 
-    result1 <- get client key
-    result1
-      |> Maybe.isJust
-      |> Assert.assert "Thing should be persisted"
+        result1 <- get client key
+        result1
+          |> Maybe.isJust
+          |> Assert.assert "Thing should be persisted"
 
-    delete client key
+        delete client key
 
-    result2 <- get client key
-    result2
-      |> Maybe.isNothing
-      |> Assert.assert "Thing should not be persisted"
+        result2 <- get client key
+        result2
+          |> Maybe.isNothing
+          |> Assert.assert "Thing should not be persisted"
