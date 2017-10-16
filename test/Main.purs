@@ -75,8 +75,9 @@ suites = do
         let kind = Kind "Person"
         let name = Name "Simmy"
         let key = [Tuple kind name]
-        let thing = Thing { score: 15 }
         delete client key
+
+        let thing = Thing { score: 15 }
         thing
           |> Foreign.toForeign
           |> upsert client [] kind name
@@ -95,10 +96,9 @@ suites = do
               |> _.id
               |> Assert.equal (Name "Simmy")
 
-            {-- TODO --}
-            {-- value --}
-            {--   |> _.path --}
-            {--   |> Assert.equal ["Person", "Simmy"] --}
+            value
+              |> _.path
+              |> Assert.equal [Tuple (Kind "Person") (Name "Simmy")]
 
             value
               |> _.data
@@ -110,8 +110,9 @@ suites = do
         let kind = Kind "Person"
         let id = Id 50
         let key = [Tuple kind id]
-        let thing = Thing { score: 15 }
         delete client key
+
+        let thing = Thing { score: 15 }
         thing
           |> Foreign.toForeign
           |> upsert client [] kind id
@@ -130,10 +131,9 @@ suites = do
               |> _.id
               |> Assert.equal (Id 50)
 
-            {-- TODO --}
-            {-- value --}
-            {--   |> _.path --}
-            {--   |> Assert.equal ["Person", "Simmy"] --}
+            value
+              |> _.path
+              |> Assert.equal [Tuple (Kind "Person") (Id 50)]
 
             value
               |> _.data
@@ -141,8 +141,46 @@ suites = do
               |> Except.runExcept
               |> Assert.equal (Right thing)
 
-      {-- TODO --}
-      {-- test "updating" --}
+      test "overwriting and existing record" do
+        let kind = Kind "Person"
+        let id = Id 50
+        let key = [Tuple kind id]
+        delete client key
+
+        let thing1 = Thing { score: 1 }
+        thing1
+          |> Foreign.toForeign
+          |> upsert client [] kind id
+
+        let thing2 = Thing { score: 2 }
+        thing2
+          |> Foreign.toForeign
+          |> upsert client [] kind id
+
+        result <- get client key
+        case result of
+          Nothing ->
+            failure "get returned Nothing"
+
+          Just value -> do
+            value
+              |> _.kind
+              |> Assert.equal "Person"
+
+            value
+              |> _.id
+              |> Assert.equal (Id 50)
+
+            value
+              |> _.path
+              |> Assert.equal [Tuple (Kind "Person") (Id 50)]
+
+            value
+              |> _.data
+              |> FGeneric.genericDecode opts
+              |> Except.runExcept
+              |> Assert.equal (Right thing2)
+
 
     suite "delete" do
       test "deletion" do

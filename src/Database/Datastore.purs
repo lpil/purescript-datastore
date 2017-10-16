@@ -22,6 +22,7 @@ import Control.Monad.Eff (kind Effect)
 import Data.Foreign (Foreign)
 import Data.Foreign as Foreign
 import Data.Array as Array
+import Data.Int as Int
 import Data.Function.Pipe ((|>))
 import Data.Functor (map)
 import Data.Generic.Rep (class Generic)
@@ -63,7 +64,7 @@ type Result =
   { id :: Id
   , kind :: String
   , data :: Foreign
-  , path :: Array String
+  , path :: KeyPath
   }
 
 
@@ -170,7 +171,7 @@ save
 save method client ancestors kind id data_ =
   let
     keyPair =
-      [Foreign.toForeign kind, expandId id]
+      [Foreign.toForeign kind, idToForeign id]
 
     key =
       ancestors
@@ -198,15 +199,15 @@ flattenPath :: KeyPath -> Array Foreign
 flattenPath path =
   let
     expand (Tuple kind id) =
-       [Foreign.toForeign kind, expandId id]
+       [Foreign.toForeign kind, idToForeign id]
   in
     path
       |> map expand
       |> Array.concat
 
 
-expandId :: Id -> Foreign
-expandId id =
+idToForeign :: Id -> Foreign
+idToForeign id =
   case id of
     Name n ->
       Foreign.toForeign n
@@ -223,7 +224,7 @@ processRawResult r =
     Just { id: foreignToId r.id
          , kind: r.kind
          , data: r.data
-         , path: r.path
+         , path: arrayToKeyPath r.path
          }
 
 
@@ -235,3 +236,27 @@ foreignToId f =
 
     _ ->
       Name (Foreign.unsafeFromForeign f)
+
+
+arrayToKeyPath :: Array String -> KeyPath
+arrayToKeyPath parts =
+  case Array.take 2 parts of
+    [kind, id] ->
+      Array.cons
+        (Tuple (Kind kind) (stringToId id))
+        (arrayToKeyPath (Array.drop 2 parts))
+
+    _ ->
+      []
+
+
+stringToId :: String -> Id
+stringToId s =
+  -- What if the Id is a name that only has digits in it?
+  -- This sucks.
+  case Int.fromString s of
+    Nothing ->
+      Name s
+
+    Just i ->
+      Id i
