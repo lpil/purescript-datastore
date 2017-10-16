@@ -8,8 +8,7 @@ module Database.Datastore
     , KeyPath(..)
     , makeClient
     , delete
-    {-- TODO --}
-    {-- , insert --}
+    , insert
     , upsert
     {-- TODO --}
     {-- , update --}
@@ -24,7 +23,7 @@ import Data.Foreign as Foreign
 import Data.Array as Array
 import Data.Int as Int
 import Data.Function.Pipe ((|>))
-import Data.Functor (map)
+import Data.Functor as Functor
 import Data.Generic.Rep (class Generic)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe(..))
@@ -120,7 +119,7 @@ get client key =
     |> flattenPath
     |> _get client
     |> Aff.fromEffFnAff
-    |> map processRawResult
+    |> Functor.map processRawResult
 
 
 upsert
@@ -202,7 +201,7 @@ flattenPath path =
        [Foreign.toForeign kind, idToForeign id]
   in
     path
-      |> map expand
+      |> Functor.map expand
       |> Array.concat
 
 

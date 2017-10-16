@@ -1,11 +1,13 @@
 module Test.Main where
 
-import Prelude (class Eq, class Show, Unit, bind, discard)
+import Prelude (class Eq, class Show, Unit, unit, bind, discard, pure)
 
 import Control.Monad.Eff (Eff)
+import Control.Bind (bindFlipped)
 import Control.Monad.Eff.AVar (AVAR)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Except as Except
+import Control.Monad.Aff as Aff
 
 import Data.Foreign as Foreign
 import Data.Function.Pipe ((|>))
@@ -181,6 +183,97 @@ suites = do
               |> Except.runExcept
               |> Assert.equal (Right thing2)
 
+    suite "insert" do
+      test "insert and get a new named Entity" do
+        let kind = Kind "Person"
+        let name = Name "Simmy"
+        let key = [Tuple kind name]
+        delete client key
+
+        let thing = Thing { score: 15 }
+        thing
+          |> Foreign.toForeign
+          |> insert client [] kind name
+
+        result <- get client key
+        case result of
+          Nothing ->
+            failure "get returned Nothing"
+
+          Just value -> do
+            value
+              |> _.kind
+              |> Assert.equal "Person"
+
+            value
+              |> _.id
+              |> Assert.equal (Name "Simmy")
+
+            value
+              |> _.path
+              |> Assert.equal [Tuple (Kind "Person") (Name "Simmy")]
+
+            value
+              |> _.data
+              |> FGeneric.genericDecode opts
+              |> Except.runExcept
+              |> Assert.equal (Right thing)
+
+      test "insert and get a new numbered Entity" do
+        let kind = Kind "Person"
+        let id = Id 50
+        let key = [Tuple kind id]
+        delete client key
+
+        let thing = Thing { score: 15 }
+        thing
+          |> Foreign.toForeign
+          |> insert client [] kind id
+
+        result <- get client key
+        case result of
+          Nothing ->
+            failure "get returned Nothing"
+
+          Just value -> do
+            value
+              |> _.kind
+              |> Assert.equal "Person"
+
+            value
+              |> _.id
+              |> Assert.equal (Id 50)
+
+            value
+              |> _.path
+              |> Assert.equal [Tuple (Kind "Person") (Id 50)]
+
+            value
+              |> _.data
+              |> FGeneric.genericDecode opts
+              |> Except.runExcept
+              |> Assert.equal (Right thing)
+
+      test "cannot insert over existing Entity" do
+        let kind = Kind "Person"
+        let id = Id 50
+        let key = [Tuple kind id]
+        delete client key
+
+        Thing { score: 1 }
+          |> Foreign.toForeign
+          |> insert client [] kind id
+
+        Thing { score: 2 }
+          |> Foreign.toForeign
+          |> insert client [] kind id
+          |> Aff.attempt
+          |> bindFlipped case _ of
+            Right _ ->
+              failure "Should not have inserted over existing Entity"
+
+            Left msg ->
+              pure unit
 
     suite "delete" do
       test "deletion" do
