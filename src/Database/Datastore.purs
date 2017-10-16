@@ -10,8 +10,7 @@ module Database.Datastore
     , delete
     , insert
     , upsert
-    {-- TODO --}
-    {-- , update --}
+    , update
     , get
     ) where
 

@@ -275,6 +275,63 @@ suites = do
             Left msg ->
               pure unit
 
+    suite "update" do
+      test "cannot update a non-existing Entity" do
+        let kind = Kind "Person"
+        let id = Id 88
+        let key = [Tuple kind id]
+        delete client key
+
+        Thing { score: 1 }
+          |> Foreign.toForeign
+          |> update client [] kind id
+          |> Aff.attempt
+          |> bindFlipped case _ of
+            Right _ ->
+              failure "Should not have updated a non-existing Entity"
+
+            Left msg ->
+              pure unit
+
+      test "update an existing Entity" do
+        let kind = Kind "Person"
+        let id = Id 50
+        let key = [Tuple kind id]
+        delete client key
+
+        Thing { score: 15 }
+          |> Foreign.toForeign
+          |> insert client [] kind id
+
+        let thing = Thing { score: 1 }
+        thing
+          |> Foreign.toForeign
+          |> update client [] kind id
+
+        result <- get client key
+        case result of
+          Nothing ->
+            failure "get returned Nothing"
+
+          Just value -> do
+            value
+              |> _.kind
+              |> Assert.equal "Person"
+
+            value
+              |> _.id
+              |> Assert.equal (Id 50)
+
+            value
+              |> _.path
+              |> Assert.equal [Tuple (Kind "Person") (Id 50)]
+
+            value
+              |> _.data
+              |> FGeneric.genericDecode opts
+              |> Except.runExcept
+              |> Assert.equal (Right thing)
+
     suite "delete" do
       test "deletion" do
         let kind = Kind "Person"
